@@ -1,0 +1,87 @@
+# tell docker what version of the docker-compose.yml we're using
+version: '3'
+
+# define the network
+networks:
+  web-network:
+
+# start the services section
+services:
+  # define the name of our service
+  # corresponds to the "--name" parameter
+  docker-php-cli:
+    # define the directory where the build should happened,
+    # i.e. where the Dockerfile of the service is located
+    # all paths are relative to the location of docker-compose.yml
+    build: 
+      context: ./php-cli
+    # reserve a tty - otherwise the container shuts down immediately
+    # corresponds to the "-i" flag
+    tty: true
+    # mount the app directory of the host to /var/www in the container
+    # corresponds to the "-v" option
+    volumes:
+      - ./app:/var/www/html
+    # connect to the network
+    # corresponds to the "--network" option
+    networks:
+      - web-network
+  
+  docker-nginx:
+    build: 
+      context: ./nginx
+    # defines the port mapping
+    # corresponds to the "-p" flag
+    ports:
+      - "15000:80"
+    tty: true
+    volumes:
+      - ./app:/var/www/html
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    networks:
+      - web-network
+
+  docker-httpd:
+    build: 
+      context: ./httpd
+    # defines the port mapping
+    # corresponds to the "-p" flag
+    ports:
+      - "20000:80"
+    tty: true
+    volumes:
+      - ./app:/var/www/html
+      - ./httpd/conf:/etc/httpd/conf
+      - ./httpd/conf.d:/etc/httpd/conf.d
+      - ./httpd/logs:/var/log/httpd/
+    networks:
+      - web-network
+
+  docker-php-fpm:
+    build: 
+      context: ./php-fpm
+    tty: true
+    ports:
+      - "16000:9000"
+    volumes:
+      - ./app:/var/www/html
+      - ./php-fpm/conf.d:/usr/local/etc/php/conf.d
+      - ./php-fpm/logs:/var/www/html/logs
+    networks:
+      - web-network
+
+  docker-mariadb:
+    build: 
+      context: ./mariadb
+    tty: true
+    command: --default-authentication-plugin=mysql_native_password
+    ports:
+      - "17000:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_USER=root
+      - MYSQL_PASS=root
+    volumes:
+      - ./mariadb/dbbase:/docker-entrypoint-initdb.d
+    networks:
+      - web-network
